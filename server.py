@@ -1,59 +1,57 @@
 import socket
 import threading
 
-HOST = "0.0.0.0"  # Listen on all interfaces
+HOST = "0.0.0.0"  # Allows LAN connection, change to "127.0.0.1" for local-only
 PORT = 5000
 
 clients = {}
-lock = threading.Lock()
 
-def handle_client(client, addr):
+def handle_client(client, address):
     try:
-        username = client.recv(1024).decode()
-        with lock:
-            if username in clients:
-                client.send("Username already taken!".encode())
-                client.close()
-                return
-            clients[username] = client
-            print(f"{username} joined from {addr}")
+        client.send("Enter your username: ".encode())
+        username = client.recv(1024).decode().strip()
 
-        # Notify all users
-        broadcast(f"{username} has joined the chat!", "Server")
+        if not username or username in clients:
+            client.send("ERROR: Username already taken!\n".encode())
+            client.close()
+            return
+        
+        clients[username] = client
+        print(f"[INFO] {username} joined from {address}")
+        
+        broadcast(f"[SERVER] {username} has joined the chat!", "Server")
 
         while True:
-            msg = client.recv(1024).decode()
+            msg = client.recv(1024).decode().strip()
             if not msg or msg.lower() == "exit":
                 break
             broadcast(msg, username)
-        
+    
     except:
         pass
     finally:
-        with lock:
+        if username in clients:
             del clients[username]
-        print(f"{username} left the chat")
-        broadcast(f"{username} has left the chat", "Server")
+        broadcast(f"[SERVER] {username} has left the chat!", "Server")
         client.close()
 
-def broadcast(msg, sender):
-    with lock:
-        for user, conn in clients.items():
-            try:
-                conn.send(f"{sender}: {msg}".encode())
-            except:
-                conn.close()
-                del clients[user]
+def broadcast(message, sender):
+    for user, conn in clients.items():
+        try:
+            conn.send(f"{sender}: {message}\n".encode())
+        except:
+            conn.close()
+            del clients[user]
 
 def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind((HOST, PORT))
-    server.listen()
-    print(f"Server started on {HOST}:{PORT}")
+    server.listen(5)
+    print(f"[SERVER] Running on {HOST}:{PORT}")
 
     while True:
-        client, addr = server.accept()
-        threading.Thread(target=handle_client, args=(client, addr)).start()
+        client, address = server.accept()
+        threading.Thread(target=handle_client, args=(client, address)).start()
 
 if __name__ == "__main__":
     start_server()
