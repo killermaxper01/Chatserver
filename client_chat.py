@@ -1,13 +1,13 @@
 import socket
 import threading
 
-SERVER_IP = "127.0.0.1"  # Change this if running on LAN
+SERVER_IP = "127.0.0.1"  # Change this to the server's IP if running on LAN
 SERVER_PORT = 5000
 
 def receive_messages(sock):
     while True:
         try:
-            msg = sock.recv(1024).decode()
+            msg = sock.recv(1024).decode().strip()
             if not msg:
                 break
             print(msg)
@@ -22,8 +22,8 @@ def start_client():
     client.send(username.encode())
 
     server_response = client.recv(1024).decode()
-    if server_response == "Username already taken!":
-        print("This username is already in use. Try another one.")
+    if "ERROR" in server_response:
+        print(server_response)
         client.close()
         return
 
